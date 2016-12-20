@@ -159,6 +159,8 @@ public class CameraView : MonoBehaviour {
             source.Stop ();
             releaseTarget();
             winMenu.SetActive(true);
+            int lastBestLevel = PlayerPrefs.GetInt("max_level", 0);
+            PlayerPrefs.SetInt("max_level", Mathf.Max(lastBestLevel, 1));
             GameFinished();
         }
 
