@@ -6,13 +6,18 @@ public enum TouchType { NoTouch, Tap, LongPress};
 
 public class CameraView : MonoBehaviour {
 
-    public Canvas introCanvas;
-    public Canvas winCanvas;
+    private static int LEVEL_TIME = 90;
+    
+    public GameObject pauseMenu;
+    public GameObject winMenu;
+    public GameObject loseMenu;
+    public Text timeLeftText;
 
     private TargetableElement gazedElement;
     private CharacterController characterController;
 
     private float lastTouchTime;
+    private float levelTimeLeft;
 
     private TargetableElement clickedElement;
     private Transform _originalParentTransform;
@@ -25,13 +30,12 @@ public class CameraView : MonoBehaviour {
 
     private BookShelf _bookShelf;
 
-    private GameObject _introObject;
-    private GameObject _winObject;
+    private MouseLook _mouseLook;
     private bool _isFirstClick;
 
     private  bool _booksAlreadySorted;
 
-    private bool havePlayerWin;
+    private bool gameFinished;
 
 	private float playerDistance;
 	private AudioSource gameAudio;
@@ -53,7 +57,7 @@ public class CameraView : MonoBehaviour {
         _tvScreen.SetActive(false);
 
         _bookShelf = GameObject.FindGameObjectWithTag("Bookshelf").GetComponent<BookShelf>();
-        havePlayerWin = false;
+        gameFinished = false;
         _booksAlreadySorted = false;
 
 		tv = GameObject.Find ("FlatScreenTV");
@@ -61,19 +65,28 @@ public class CameraView : MonoBehaviour {
 		source = GetComponent<AudioSource> ();
 //        source.Stop();
 
-        _introObject = GameObject.Find("Intro");
+        _mouseLook = GetComponent<MouseLook>();
 
-        _winObject = GameObject.Find("Win");
-        _winObject.SetActive(false);
+        levelTimeLeft = LEVEL_TIME;
 
         _isFirstClick = true;
 	}
 	
 	// Update is called once per frame
 	void Update () {
-        if (havePlayerWin) {
+        if (gameFinished) {
             return;
         }
+        if (Input.GetKeyDown(KeyCode.Escape)) {
+            SetPauseActive(!pauseMenu.activeSelf);
+        }
+
+        if (pauseMenu.activeSelf) {
+            return;
+        }
+
+        levelTimeLeft -= Time.deltaTime;
+        timeLeftText.text = string.Format("{0}", (int) levelTimeLeft);
 
         if (gazedElement != null 
             && Vector3.Distance(transform.position, gazedElement.transform.position) < 3f) {
@@ -94,7 +107,7 @@ public class CameraView : MonoBehaviour {
             move (transform.right);
         }
 
-        if (Input.GetMouseButtonDown(0) || Input.GetKey(KeyCode.Space)) {
+        if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.Space)) {
             var ray = new Ray(transform.position, transform.forward);
             RaycastHit hit;
             if (Physics.Raycast(ray, out hit)) {
@@ -114,6 +127,13 @@ public class CameraView : MonoBehaviour {
         isGameOver();
 	}
 
+    public void SetPauseActive(bool isInPause) {
+        pauseMenu.SetActive(isInPause);
+        Screen.lockCursor = !isInPause;
+        _mouseLook.SetPaused(isInPause);
+        // timer
+    }
+
 	private void handleMusic() {
 		playerDistance = Vector3.Distance (transform.position, tv.transform.position);
 		if (playerDistance < 8 && tv.GetComponent<TvScreen>().child.activeSelf) {
@@ -129,17 +149,30 @@ public class CameraView : MonoBehaviour {
 	}
 
     private void isGameOver() {
-        if (havePlayerWin)
+        if (gameFinished)
             return;
 
         float position = Vector3.Distance(door.transform.position, key.transform.position);
-        havePlayerWin = position < 2;
+        gameFinished = position < 2;
 
-        if (havePlayerWin) {
+        if (gameFinished) {
             source.Stop ();
             releaseTarget();
-            _winObject.SetActive(true);
+            winMenu.SetActive(true);
+            GameFinished();
         }
+
+        if (levelTimeLeft <= 0) {
+            source.Stop ();
+            levelTimeLeft = 0;
+            loseMenu.SetActive(true);
+            GameFinished();
+        }
+    }
+
+    private void GameFinished() {
+        Screen.lockCursor = false;
+        _mouseLook.SetPaused(true);
     }
 
     public void onElementGaze(TargetableElement clickableElement) {
