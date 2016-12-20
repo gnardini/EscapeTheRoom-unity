@@ -6,75 +6,55 @@ public enum TouchType { NoTouch, Tap, LongPress};
 
 public class CameraView : MonoBehaviour {
 
-    private static int LEVEL_TIME = 90;
+    private static float LEVEL_TIME = 90f;
     
     public GameObject pauseMenu;
     public GameObject winMenu;
     public GameObject loseMenu;
     public Text timeLeftText;
 
-    private TargetableElement gazedElement;
-    private CharacterController characterController;
+    public GameObject _tvScreen;
+    public GameObject key;
+    public GameObject door;
 
-    private float lastTouchTime;
-    private float levelTimeLeft;
+    private CharacterController _characterController;
+    private float _levelTimeLeft;
 
     private TargetableElement clickedElement;
     private Transform _originalParentTransform;
     private Vector3 _originalPosition;
     private Quaternion _originalRotation;
 
-    private GameObject door;
-    private GameObject key;
-    private GameObject _tvScreen;
-
-    private BookShelf _bookShelf;
+    public BookShelf bookShelf;
 
     private MouseLook _mouseLook;
-    private bool _isFirstClick;
 
     private  bool _booksAlreadySorted;
 
-    private bool gameFinished;
+    private bool _gameFinished;
 
 	private float playerDistance;
-	private AudioSource gameAudio;
+	public AudioSource gameAudio;
 	private bool canPlayAudio = true;
-	private GameObject tv;
 
-	private AudioSource source;
+	private AudioSource _source;
 	private Vector3 previousVector;
 
-	// Use this for initialization
-	void Start () {
-        Screen.lockCursor = true;
-        characterController = GetComponent<CharacterController>();
-        door = GameObject.FindGameObjectWithTag("Finish");
-        key = GameObject.FindGameObjectWithTag("Key");
-        key.SetActive(false);
+	public void Start () {
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
 
-        _tvScreen = GameObject.FindGameObjectWithTag("TvScreen");
-        _tvScreen.SetActive(false);
-
-        _bookShelf = GameObject.FindGameObjectWithTag("Bookshelf").GetComponent<BookShelf>();
-        gameFinished = false;
-        _booksAlreadySorted = false;
-
-		tv = GameObject.Find ("FlatScreenTV");
-		gameAudio = tv.GetComponent<AudioSource>();
-		source = GetComponent<AudioSource> ();
-//        source.Stop();
-
+        _characterController = GetComponent<CharacterController>();
+        _source = GetComponent<AudioSource> ();
         _mouseLook = GetComponent<MouseLook>();
 
-        levelTimeLeft = LEVEL_TIME;
-
-        _isFirstClick = true;
+        _gameFinished = false;
+        _booksAlreadySorted = false;
+        _levelTimeLeft = LEVEL_TIME;
 	}
 	
-	// Update is called once per frame
 	void Update () {
-        if (gameFinished) {
+        if (_gameFinished) {
             return;
         }
         if (Input.GetKeyDown(KeyCode.Escape)) {
@@ -85,15 +65,12 @@ public class CameraView : MonoBehaviour {
             return;
         }
 
-        levelTimeLeft -= Time.deltaTime;
-        timeLeftText.text = string.Format("{0}", (int) levelTimeLeft);
+        transform.position = new Vector3(transform.position.x, 1.5f, transform.position.z);
 
-        if (gazedElement != null 
-            && Vector3.Distance(transform.position, gazedElement.transform.position) < 3f) {
-			source.Stop ();
-            return;    
-        }
+        _levelTimeLeft -= Time.deltaTime;
+        timeLeftText.text = string.Format("{0}", (int) _levelTimeLeft);
 
+        previousVector = transform.position;
         if (Input.GetKey(KeyCode.W)) {
             move (transform.forward);
         }
@@ -113,6 +90,7 @@ public class CameraView : MonoBehaviour {
             if (Physics.Raycast(ray, out hit)) {
                 TargetableElement element = hit.collider.gameObject.GetComponent<TargetableElement>();
                 if (element != null) {
+                    element.onClicked();
                     onElementClicked(element);   
                 } else {
                     releaseTarget();  
@@ -124,23 +102,24 @@ public class CameraView : MonoBehaviour {
 
         transform.position = new Vector3(transform.position.x, 1.5f, transform.position.z);
 		handleMusic();
+        handleFootsteps();
         isGameOver();
 	}
 
     public void SetPauseActive(bool isInPause) {
         pauseMenu.SetActive(isInPause);
-        Screen.lockCursor = !isInPause;
+        Cursor.lockState = isInPause ? CursorLockMode.None : CursorLockMode.Locked;
+        Cursor.visible = isInPause;
         _mouseLook.SetPaused(isInPause);
-        // timer
     }
 
 	private void handleMusic() {
-		playerDistance = Vector3.Distance (transform.position, tv.transform.position);
-		if (playerDistance < 8 && tv.GetComponent<TvScreen>().child.activeSelf) {
-			gameAudio.volume = (1 / playerDistance) * 0.012f; // adjust the volume to whatever you want
+        playerDistance = Vector3.Distance (transform.position, _tvScreen.transform.position);
+        if (playerDistance < 8 && _tvScreen.activeSelf) {
+			gameAudio.volume = (1 / playerDistance) * 0.012f; 
 			if (canPlayAudio) {
 				gameAudio.Play ();
-				canPlayAudio = false;  // you can reset this in your code elsewhere... I did this just to make sure the audio only plays once.
+				canPlayAudio = false; 
 			}
 		} else {
 			gameAudio.Stop ();
@@ -149,14 +128,14 @@ public class CameraView : MonoBehaviour {
 	}
 
     private void isGameOver() {
-        if (gameFinished)
+        if (_gameFinished)
             return;
 
         float position = Vector3.Distance(door.transform.position, key.transform.position);
-        gameFinished = position < 2;
+        _gameFinished = position < 2;
 
-        if (gameFinished) {
-            source.Stop ();
+        if (_gameFinished) {
+            _source.Stop ();
             releaseTarget();
             winMenu.SetActive(true);
             int lastBestLevel = PlayerPrefs.GetInt("max_level", 0);
@@ -164,25 +143,18 @@ public class CameraView : MonoBehaviour {
             GameFinished();
         }
 
-        if (levelTimeLeft <= 0) {
-            source.Stop ();
-            levelTimeLeft = 0;
+        if (_levelTimeLeft <= 0) {
+            _source.Stop ();
+            _levelTimeLeft = 0;
             loseMenu.SetActive(true);
             GameFinished();
         }
     }
 
     private void GameFinished() {
-        Screen.lockCursor = false;
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
         _mouseLook.SetPaused(true);
-    }
-
-    public void onElementGaze(TargetableElement clickableElement) {
-        gazedElement = clickableElement;
-    }
-
-    public void onElementGazeFinished() {
-        gazedElement = null;
     }
 
     public void onElementClicked(TargetableElement element) {
@@ -244,10 +216,10 @@ public class CameraView : MonoBehaviour {
         oldBook.actualPosition = newBook.actualPosition;
         newBook.actualPosition = oldBookPosition;
 
-        _booksAlreadySorted = _bookShelf.isCombinationCorrect();
+        _booksAlreadySorted = bookShelf.isCombinationCorrect();
         if (_booksAlreadySorted) {
             _booksAlreadySorted = true;
-            _bookShelf.getFirstBook().drop();
+            bookShelf.getFirstBook().drop();
             StartCoroutine(WaitAndShowKey());
         }
 
@@ -260,20 +232,18 @@ public class CameraView : MonoBehaviour {
     }
 
     private void move(Vector3 moveDirection) {
-		previousVector = transform.position;
         Vector3 forwardVector = moveDirection * Time.deltaTime * 3;
         Vector3 futureVector = transform.position + forwardVector;
 		if (Mathf.Pow (futureVector.x, 2) + Mathf.Pow (futureVector.z, 2) < Mathf.Pow (13f, 2)) {
-			characterController.Move (forwardVector);
+			_characterController.Move (forwardVector);
 		}
-		handleFootsteps ();
     }
 
 	private void handleFootsteps() {
-		if (!source.isPlaying && Vector3.Distance(transform.position, previousVector) > 0.06f) {
-			source.Play ();
-		} else if(source.isPlaying && Vector3.Distance(transform.position, previousVector) < 0.06f) {
-			source.Stop();
+		if (!_source.isPlaying && Vector3.Distance(transform.position, previousVector) > 0.00001f) {
+			_source.Play ();
+        } else if(_source.isPlaying && Vector3.Distance(transform.position, previousVector) < 0.00001f) {
+			_source.Stop();
 		}
 	}
 

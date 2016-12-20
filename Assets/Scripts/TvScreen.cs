@@ -14,11 +14,6 @@ public class TvScreen : TargetableElement {
 
     public GameObject child;
 
-    void Start() {
-        base.Start();
-        child = transform.GetChild(0).gameObject;
-    }
-
     private void startFlickering() {
         StartCoroutine(FilckerLights());
     }

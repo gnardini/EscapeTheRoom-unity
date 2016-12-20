@@ -9,7 +9,6 @@ public class Book : TargetableElement {
     private Rigidbody _rigidbody;
 
     void Start() {
-        base.Start();
         _rigidbody = GetComponent<Rigidbody>();
     }
 

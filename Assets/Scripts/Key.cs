@@ -4,23 +4,20 @@ using System.Collections;
 public class Key : TargetableElement {
 
     private bool alreadyClicked;
-void Start()
-    {
-        base.Start();
+
+    void Start() {
         alreadyClicked = false;
     }
 
 
-    void Update()
-    {
+    void Update() {
         if (alreadyClicked)
             return;
         transform.Rotate(new Vector3(0f, (90f * Time.deltaTime), 0f));
     }
 
-    public void onClicked()
-    {
-        base.onClicked();
+    override public void onClicked() {
         alreadyClicked = true;
     }
+
 }
