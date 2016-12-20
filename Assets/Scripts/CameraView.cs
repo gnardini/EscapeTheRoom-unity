@@ -152,6 +152,7 @@ public class CameraView : MonoBehaviour {
     }
 
     private void GameFinished() {
+        _gameFinished = true;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
         _mouseLook.SetPaused(true);
